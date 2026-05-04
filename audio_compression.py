@@ -8,7 +8,6 @@ def apply_stft(audio):
 
 
 def quantize(magnitude, levels=256):
-    """Uniform scalar quantization. Higher levels = better quality."""
     max_val = np.max(magnitude)
     if max_val == 0:
         return magnitude, 1.0
@@ -19,7 +18,6 @@ def quantize(magnitude, levels=256):
 
 
 def run_length_encode(data):
-    """Run-length encoding on flattened quantized data."""
     flat = data.flatten().astype(int)
     encoded = []
     count = 1
@@ -36,7 +34,6 @@ def run_length_encode(data):
 
 
 def run_length_decode(encoded, shape):
-    """Decode run-length encoded data back to original shape."""
     flat = []
     for value, count in encoded:
         flat.extend([value] * count)
@@ -44,19 +41,16 @@ def run_length_decode(encoded, shape):
 
 
 def dequantize(quantized, step):
-    """Reconstruct magnitude from quantized values."""
-    return (quantized + 0.5) * step  # mid-tread reconstruction
+    return (quantized + 0.5) * step
 
 
 def reconstruct_audio(magnitude, phase, length=None):
-    """Reconstruct time-domain audio from magnitude and phase."""
     stft = magnitude * np.exp(1j * phase)
     audio = librosa.istft(stft, hop_length=512, length=length)
     return audio
 
 
 def calculate_snr(original, reconstructed):
-    """Signal-to-Noise Ratio in dB. Higher is better."""
     min_len = min(len(original), len(reconstructed))
     original = original[:min_len]
     reconstructed = reconstructed[:min_len]

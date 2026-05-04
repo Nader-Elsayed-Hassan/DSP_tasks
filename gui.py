@@ -30,7 +30,6 @@ class AudioApp:
 
         self.filepath = None
 
-        # ── Left panel: buttons ──────────────────────────────────────────────
         btn_frame = tk.Frame(master)
         btn_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
@@ -50,7 +49,6 @@ class AudioApp:
                                    justify=tk.LEFT, fg="gray")
         self.file_label.pack(pady=10)
 
-        # ── Right panel: matplotlib canvas ───────────────────────────────────
         plot_frame = tk.Frame(master)
         plot_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=10)
 
@@ -61,10 +59,7 @@ class AudioApp:
         self.canvas = FigureCanvasTkAgg(self.fig, master=plot_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-    # ── helpers ──────────────────────────────────────────────────────────────
-
     def _clear_plots(self, message=""):
-        """Reset both axes to a blank state with an optional message."""
         for ax in self.axes:
             ax.clear()
             ax.set_xticks([])
@@ -78,7 +73,6 @@ class AudioApp:
         self.fig.tight_layout()
 
     def _plot_waveform(self, ax, audio, sr, title, color="steelblue"):
-        """Draw a waveform on the given axes."""
         ax.clear()
         times = np.linspace(0, len(audio) / sr, num=len(audio))
         ax.plot(times, audio, color=color, linewidth=0.6)
@@ -92,8 +86,6 @@ class AudioApp:
         self.fig.tight_layout()
         self.canvas.draw()
 
-    # ── button callbacks ─────────────────────────────────────────────────────
-
     def select_file(self):
         path = filedialog.askopenfilename(
             filetypes=[("Audio files", "*.wav;*.mp3;*.flac;*.ogg;*.m4a")]
@@ -106,11 +98,9 @@ class AudioApp:
         self.silence_btn.config(state=tk.NORMAL)
         self.compress_btn.config(state=tk.NORMAL)
 
-        # Show filename (truncated) in label
         short = path.split("/")[-1]
         self.file_label.config(text=short, fg="black")
 
-        # Plot original waveform in top axes; clear bottom
         try:
             audio, sr = librosa.load(path, sr=None)
             self._plot_waveform(self.axes[0], audio, sr, "Original Waveform", color="steelblue")
@@ -132,16 +122,12 @@ class AudioApp:
         if not output:
             return
         try:
-            # Load original for plotting
             audio_before, sr = librosa.load(self.filepath, sr=None)
 
-            # Run noise reduction
             reduce_noise_file(self.filepath, output)
 
-            # Load processed audio
             audio_after, sr_after = librosa.load(output, sr=None)
 
-            # Plot before (top) and after (bottom)
             self._plot_waveform(self.axes[0], audio_before, sr,
                                 "Before Noise Removal", color="steelblue")
             self._plot_waveform(self.axes[1], audio_after, sr_after,
