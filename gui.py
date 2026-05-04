@@ -1,31 +1,28 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
-# library imports may fail if packages are not installed; we will notify the user
-try:
-    import librosa
-    import librosa.display
-    import matplotlib.pyplot as plt
-except ModuleNotFoundError as e:
-    missing = e.name
-    tk.Tk().withdraw()  # hide main window
-    messagebox.showerror(
-        "Missing Dependency",
-        f"The required Python package '{missing}' is not installed.\n"
-        "Please install dependencies with:\n"
-        "pip install librosa noisereduce soundfile matplotlib"
-    )
-    raise
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
+import soundfile as sf
 
-from noise import reduce_noise_file
-from silence import remove_silence_file
+from audio_noise import reduce_noise_file
+from audio_silence import remove_silence_file
+from audio_compression import (
+    apply_stft,
+    quantize,
+    run_length_encode,
+    dequantize,
+    reconstruct_audio,
+    calculate_snr
+)
 
 
 class AudioApp:
     def __init__(self, master):
         self.master = master
         master.title("Audio Cleaner & Viewer")
-        master.geometry("300x220")
+        master.geometry("300x260")
 
         self.filepath = None
 
@@ -41,6 +38,9 @@ class AudioApp:
         self.wave_btn = tk.Button(master, text="Show Waveform", width=25, command=self.show_waveform, state=tk.DISABLED)
         self.wave_btn.pack(pady=5)
 
+        self.compress_btn = tk.Button(master, text="Compress Audio", width=25, command=self.compress_audio, state=tk.DISABLED)
+        self.compress_btn.pack(pady=5)
+
     def select_file(self):
         path = filedialog.askopenfilename(
             filetypes=[("Audio files", "*.wav;*.mp3;*.flac;*.ogg;*.m4a")]
@@ -50,41 +50,28 @@ class AudioApp:
             self.noise_btn.config(state=tk.NORMAL)
             self.silence_btn.config(state=tk.NORMAL)
             self.wave_btn.config(state=tk.NORMAL)
+            self.compress_btn.config(state=tk.NORMAL)
             messagebox.showinfo("Selected", f"Selected file:\n{path}")
 
     def remove_noise(self):
-        if not self.filepath:
-            return
-        output = filedialog.asksaveasfilename(
-            defaultextension=".wav",
-            filetypes=[("WAV files", "*.wav")],
-            title="Save noise reduced file as"
-        )
+        output = filedialog.asksaveasfilename(defaultextension=".wav")
         if output:
             try:
                 reduce_noise_file(self.filepath, output)
-                messagebox.showinfo("Done", f"Noise reduced\nSaved to {output}")
+                messagebox.showinfo("Done", "Noise removed successfully")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to remove noise:\n{e}")
+                messagebox.showerror("Error", str(e))
 
     def remove_silence(self):
-        if not self.filepath:
-            return
-        output = filedialog.asksaveasfilename(
-            defaultextension=".wav",
-            filetypes=[("WAV files", "*.wav")],
-            title="Save silence removed file as"
-        )
+        output = filedialog.asksaveasfilename(defaultextension=".wav")
         if output:
             try:
                 remove_silence_file(self.filepath, output)
-                messagebox.showinfo("Done", f"Silence removed\nSaved to {output}")
+                messagebox.showinfo("Done", "Silence removed successfully")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to remove silence:\n{e}")
+                messagebox.showerror("Error", str(e))
 
     def show_waveform(self):
-        if not self.filepath:
-            return
         try:
             audio, sr = librosa.load(self.filepath, sr=None)
             plt.figure(figsize=(8, 3))
@@ -93,7 +80,29 @@ class AudioApp:
             plt.tight_layout()
             plt.show()
         except Exception as e:
-            messagebox.showerror("Error", f"Unable to load waveform:\n{e}")
+            messagebox.showerror("Error", str(e))
+
+    def compress_audio(self):
+        try:
+            audio, sr = librosa.load(self.filepath, sr=None)
+
+            mag, phase = apply_stft(audio)
+            q_mag, step = quantize(mag)
+
+            _ = run_length_encode(q_mag)
+
+            decoded_mag = dequantize(q_mag, step)
+            reconstructed = reconstruct_audio(decoded_mag, phase, length=len(audio))
+
+            output = filedialog.asksaveasfilename(defaultextension=".wav")
+            if output:
+                sf.write(output, reconstructed, sr)
+
+            snr = calculate_snr(audio, reconstructed)
+            messagebox.showinfo("Done", f"Compression finished\nSNR: {snr:.2f} dB")
+
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
 
 if __name__ == "__main__":
